@@ -58,5 +58,5 @@ fn main() {
     ];
 
     assert_eq!(part_1(stacks.clone(), &instructions), "CWMTGHBDW");
-    assert_eq!(part_2(stacks.clone(), &instructions), "SSCGWJCRB");
+    assert_eq!(part_2(stacks, &instructions), "SSCGWJCRB");
 }
