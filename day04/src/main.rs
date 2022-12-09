@@ -26,7 +26,7 @@ fn fully_overlapping((lhs, rhs): &(Range, Range)) -> bool {
 }
 
 fn overlapping_at_all((lhs, rhs): &(Range, Range)) -> bool {
-    lhs.end >= rhs.start && lhs.start <= rhs.end || rhs.end >= lhs.start && rhs.start <= lhs.end
+    lhs.end >= rhs.start && lhs.start <= rhs.end
 }
 
 fn line_to_ranges(line: &str) -> (Range, Range) {
