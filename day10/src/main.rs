@@ -1,6 +1,36 @@
 use std::collections::VecDeque;
 
-#[derive(Debug)]
+fn part_1(program: VecDeque<Instruction>) -> i32 {
+    let mut cpu = Cpu::new(program);
+    (20..=220)
+        .step_by(40)
+        .map(|c| cpu.execute_next_cycles(c) * c as i32)
+        .sum()
+}
+
+fn part_2(program: VecDeque<Instruction>) {
+    let mut cpu = Cpu::new(program);
+
+    let mut screen = vec![vec!['.'; 40]; 6];
+    for row in 0..6 {
+        for pixel in 0..40 {
+            let sprite_position = cpu.execute_next_cycles((pixel + 1) + 40 * row);
+
+            if pixel as i32 >= sprite_position - 1 && pixel as i32 <= sprite_position + 1 {
+                screen[row as usize][(pixel) as usize] = '#';
+            }
+        }
+    }
+
+    for row in screen.iter() {
+        for c in row {
+            print!("{c}");
+        }
+        println!();
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
 enum Instruction {
     Add(u32, i32),
     Noop,
@@ -14,6 +44,14 @@ struct Cpu {
 }
 
 impl Cpu {
+    fn new(program: VecDeque<Instruction>) -> Self {
+        Self {
+            program,
+            current_cycle: 0,
+            register: 1,
+        }
+    }
+
     fn execute_next_cycles(&mut self, count: u32) -> i32 {
         let mut register = self.register;
         for _ in self.current_cycle..count {
@@ -47,19 +85,8 @@ fn main() {
                 _ => panic!("unknown instruction"),
             }
         })
-        .collect();
+        .collect::<VecDeque<_>>();
 
-    let mut cpu = Cpu {
-        program,
-        current_cycle: 0,
-        register: 1,
-    };
-
-    let mut sum = 0;
-    for count in (20..=220).step_by(40) {
-        let register = cpu.execute_next_cycles(count);
-        println!("{} * {}", count, register);
-        sum += count as i32 * register;
-    }
-    println!("{sum}");
+    assert_eq!(part_1(program.clone()), 12880);
+    part_2(program);
 }
