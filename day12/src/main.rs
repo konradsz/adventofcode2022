@@ -3,8 +3,6 @@ use std::collections::HashMap;
 fn can_climb(from: char, to: char) -> bool {
     let from = if from == 'S' { 'a' } else { from };
     let to = if to == 'E' { 'z' } else { to };
-    // dbg!(from);
-    // dbg!(to);
     let from = from as u8;
     let to = to as u8;
     if to < from {
@@ -67,6 +65,16 @@ fn main() {
         .map(|l| l.chars().collect::<Vec<_>>())
         .collect::<Vec<_>>();
 
+    let mut starting_position = Vec::new();
+    for (y, row) in map.iter().enumerate() {
+        for (x, c) in row.iter().enumerate() {
+            if c == &'S' || c == &'a' {
+                starting_position.push((x as i32, y as i32));
+            }
+        }
+    }
+    println!("STARTING POSITION SIZE {}", starting_position.len());
+
     let mut start = (0, 0);
     let mut end = (0, 0);
     for (y, row) in map.iter().enumerate() {
@@ -79,8 +87,17 @@ fn main() {
         }
     }
 
-    let mut visited = HashMap::new();
-    traverse(&map, start, 0, end, &mut visited);
+    let mut results = vec![];
+    for (idx, start) in starting_position.iter().enumerate() {
+        let mut visited = HashMap::new();
+        traverse(&map, *start, 0, end, &mut visited);
 
-    println!("{:?}", visited.get(&end));
+        // println!("{:?}", visited.get(&end));
+        if let Some(steps) = visited.get(&end) {
+            println!("{idx}: {steps}");
+            results.push(*steps);
+        }
+    }
+    let min = *results.iter().min().unwrap();
+    println!("{min}");
 }
