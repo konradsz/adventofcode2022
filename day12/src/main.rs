@@ -1,33 +1,29 @@
 use std::collections::{HashMap, VecDeque};
 
-fn part_1(map: &[Vec<char>]) -> i32 {
-    let start = find_on_map(map, 'S')[0];
-    let end = find_on_map(map, 'E')[0];
-    traverse(&map, start, end).unwrap()
+fn part_1(map: &[Vec<u8>]) -> i32 {
+    let start = find_on_map(map, b'S')[0];
+    let end = find_on_map(map, b'E')[0];
+    traverse(map, start, end).unwrap()
 }
 
-fn part_2(map: &[Vec<char>]) -> i32 {
-    let mut starting_positions = find_on_map(map, 'S');
-    starting_positions.append(&mut find_on_map(map, 'a'));
-    let end = find_on_map(map, 'E')[0];
+fn part_2(map: &[Vec<u8>]) -> i32 {
+    let mut starting_positions = find_on_map(map, b'S');
+    starting_positions.append(&mut find_on_map(map, b'a'));
+    let end = find_on_map(map, b'E')[0];
 
-    let mut best = i32::MAX;
-    for start in starting_positions {
-        if let Some(steps) = traverse(&map, start, end) {
-            if steps < best {
-                best = steps;
-            }
-        }
-    }
-    best
+    starting_positions
+        .into_iter()
+        .filter_map(|start| traverse(map, start, end))
+        .min()
+        .unwrap()
 }
 
-fn find_on_map(map: &[Vec<char>], needle: char) -> Vec<(i32, i32)> {
+fn find_on_map(map: &[Vec<u8>], needle: u8) -> Vec<(usize, usize)> {
     let mut result = vec![];
     for (y, row) in map.iter().enumerate() {
         for (x, c) in row.iter().enumerate() {
             if c == &needle {
-                result.push((x as i32, y as i32));
+                result.push((x, y));
             }
         }
     }
@@ -35,68 +31,42 @@ fn find_on_map(map: &[Vec<char>], needle: char) -> Vec<(i32, i32)> {
     result
 }
 
-fn can_climb(from: char, to: char) -> bool {
-    let from = if from == 'S' { 'a' } else { from };
-    let to = if to == 'E' { 'z' } else { to };
-    let from = from as u8;
-    let to = to as u8;
-    if to < from {
-        true
-    } else {
-        let elevation = to as u8 - from as u8;
-        elevation == 0 || elevation == 1
-    }
-}
-
 struct State {
-    position: (i32, i32),
+    position: (usize, usize),
     steps_taken: i32,
 }
 
-fn traverse(map: &[Vec<char>], start: (i32, i32), end: (i32, i32)) -> Option<i32> {
+fn traverse(map: &[Vec<u8>], start: (usize, usize), end: (usize, usize)) -> Option<i32> {
+    let height = map.len();
+    let width = map[0].len();
+
+    let mut visited: HashMap<(usize, usize), i32> = HashMap::new();
+    visited.insert(start, 0);
+
     let mut to_visit = VecDeque::new();
     to_visit.push_back(State {
         position: start,
         steps_taken: 0,
     });
 
-    let directions = [
-        (0, -1), // up
-        (1, 0),  // left
-        (0, 1),  // down
-        (-1, 0), //right
-    ];
-
-    let mut visited: HashMap<(i32, i32), i32> = HashMap::new();
-    visited.insert(start, 0);
-
     while let Some(state) = to_visit.pop_front() {
         if state.position == end {
             break;
         }
 
-        for dir in directions {
-            let new_pos = (state.position.0 + dir.0, state.position.1 + dir.1);
-            if new_pos.0 < 0
-                || new_pos.0 >= map[0].len() as i32
-                || new_pos.1 < 0
-                || new_pos.1 >= map.len() as i32
-            {
-                continue;
-            }
-
+        for neighbour in get_neighbours(state.position, height, width) {
             if can_climb(
-                map[state.position.1 as usize][state.position.0 as usize],
-                map[new_pos.1 as usize][new_pos.0 as usize],
+                map[state.position.1][state.position.0],
+                map[neighbour.1][neighbour.0],
             ) {
-                if *visited.get(&new_pos).unwrap_or(&i32::MAX) <= state.steps_taken + 1 {
+                if *visited.get(&neighbour).unwrap_or(&i32::MAX) <= state.steps_taken + 1 {
                     continue;
                 }
 
-                visited.insert(new_pos, state.steps_taken + 1);
+                visited.insert(neighbour, state.steps_taken + 1);
 
                 to_visit.push_back(State {
-                    position: new_pos,
+                    position: neighbour,
                     steps_taken: state.steps_taken + 1,
                 });
             }
@@ -106,11 +76,43 @@ fn traverse(map: &[Vec<char>], start: (i32, i32), end: (i32, i32)) -> Option<i32
     visited.get(&end).copied()
 }
 
+fn can_climb(from: u8, to: u8) -> bool {
+    let from = if from == b'S' { b'a' } else { from } as i8;
+    let to = if to == b'E' { b'z' } else { to } as i8;
+
+    to - from <= 1
+}
+
+fn get_neighbours(
+    position: (usize, usize),
+    height: usize,
+    width: usize,
+) -> impl Iterator<Item = (usize, usize)> {
+    let directions = [
+        (0, -1), // up
+        (1, 0),  // left
+        (0, 1),  // down
+        (-1, 0), //right
+    ];
+
+    let in_bounds = move |position: (i32, i32)| {
+        position.0 >= 0
+            && position.0 < width as i32
+            && position.1 >= 0
+            && position.1 < height as i32
+    };
+
+    directions.into_iter().filter_map(move |dir| {
+        let new_pos = (position.0 as i32 + dir.0, position.1 as i32 + dir.1);
+        in_bounds(new_pos).then_some((new_pos.0 as usize, new_pos.1 as usize))
+    })
+}
+
 fn main() {
     let input = std::fs::read_to_string("input").unwrap();
     let map = input
         .lines()
-        .map(|l| l.chars().collect::<Vec<_>>())
+        .map(|l| l.chars().map(|c| c as u8).collect::<Vec<_>>())
         .collect::<Vec<_>>();
 
     assert_eq!(part_1(&map), 490);
