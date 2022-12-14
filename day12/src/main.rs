@@ -1,4 +1,39 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
+
+fn part_1(map: &[Vec<char>]) -> i32 {
+    let start = find_on_map(map, 'S')[0];
+    let end = find_on_map(map, 'E')[0];
+    traverse(&map, start, end).unwrap()
+}
+
+fn part_2(map: &[Vec<char>]) -> i32 {
+    let mut starting_positions = find_on_map(map, 'S');
+    starting_positions.append(&mut find_on_map(map, 'a'));
+    let end = find_on_map(map, 'E')[0];
+
+    let mut best = i32::MAX;
+    for start in starting_positions {
+        if let Some(steps) = traverse(&map, start, end) {
+            if steps < best {
+                best = steps;
+            }
+        }
+    }
+    best
+}
+
+fn find_on_map(map: &[Vec<char>], needle: char) -> Vec<(i32, i32)> {
+    let mut result = vec![];
+    for (y, row) in map.iter().enumerate() {
+        for (x, c) in row.iter().enumerate() {
+            if c == &needle {
+                result.push((x as i32, y as i32));
+            }
+        }
+    }
+
+    result
+}
 
 fn can_climb(from: char, to: char) -> bool {
     let from = if from == 'S' { 'a' } else { from };
@@ -13,26 +48,17 @@ fn can_climb(from: char, to: char) -> bool {
     }
 }
 
-fn traverse(
-    map: &Vec<Vec<char>>,
-    current_position: (i32, i32),
-    current_step: i32,
-    end: (i32, i32),
-    visited: &mut HashMap<(i32, i32), i32>,
-) {
-    if let Some(v) = visited.get(&current_position) {
-        if v <= &current_step {
-            return;
-        }
-    }
+struct State {
+    position: (i32, i32),
+    steps_taken: i32,
+}
 
-    visited.insert(current_position, current_step);
-
-    if current_position == end {
-        return;
-    }
-
-    // visited.insert(current_position, current_step);
+fn traverse(map: &[Vec<char>], start: (i32, i32), end: (i32, i32)) -> Option<i32> {
+    let mut to_visit = VecDeque::new();
+    to_visit.push_back(State {
+        position: start,
+        steps_taken: 0,
+    });
 
     let directions = [
         (0, -1), // up
@@ -41,23 +67,45 @@ fn traverse(
         (-1, 0), //right
     ];
 
-    for dir in directions {
-        let new_pos = (current_position.0 + dir.0, current_position.1 + dir.1);
-        if new_pos.0 < 0
-            || new_pos.0 >= map[0].len() as i32
-            || new_pos.1 < 0
-            || new_pos.1 >= map.len() as i32
-        {
-            continue;
+    let mut visited: HashMap<(i32, i32), i32> = HashMap::new();
+    visited.insert(start, 0);
+
+    while let Some(state) = to_visit.pop_front() {
+        if state.position == end {
+            break;
         }
-        if can_climb(
-            map[current_position.1 as usize][current_position.0 as usize],
-            map[new_pos.1 as usize][new_pos.0 as usize],
-        ) {
-            traverse(map, new_pos, current_step + 1, end, visited);
+
+        for dir in directions {
+            let new_pos = (state.position.0 + dir.0, state.position.1 + dir.1);
+            if new_pos.0 < 0
+                || new_pos.0 >= map[0].len() as i32
+                || new_pos.1 < 0
+                || new_pos.1 >= map.len() as i32
+            {
+                continue;
+            }
+
+            if can_climb(
+                map[state.position.1 as usize][state.position.0 as usize],
+                map[new_pos.1 as usize][new_pos.0 as usize],
+            ) {
+                if *visited.get(&new_pos).unwrap_or(&i32::MAX) <= state.steps_taken + 1 {
+                    continue;
+                }
+
+                visited.insert(new_pos, state.steps_taken + 1);
+
+                to_visit.push_back(State {
+                    position: new_pos,
+                    steps_taken: state.steps_taken + 1,
+                });
+            }
         }
     }
+
+    visited.get(&end).copied()
 }
+
 fn main() {
     let input = std::fs::read_to_string("input").unwrap();
     let map = input
@@ -65,39 +113,6 @@ fn main() {
         .map(|l| l.chars().collect::<Vec<_>>())
         .collect::<Vec<_>>();
 
-    let mut starting_position = Vec::new();
-    for (y, row) in map.iter().enumerate() {
-        for (x, c) in row.iter().enumerate() {
-            if c == &'S' || c == &'a' {
-                starting_position.push((x as i32, y as i32));
-            }
-        }
-    }
-    println!("STARTING POSITION SIZE {}", starting_position.len());
-
-    let mut start = (0, 0);
-    let mut end = (0, 0);
-    for (y, row) in map.iter().enumerate() {
-        if let Some(x) = row.iter().position(|c| *c == 'S') {
-            start = (x as i32, y as i32);
-        }
-
-        if let Some(x) = row.iter().position(|c| *c == 'E') {
-            end = (x as i32, y as i32);
-        }
-    }
-
-    let mut results = vec![];
-    for (idx, start) in starting_position.iter().enumerate() {
-        let mut visited = HashMap::new();
-        traverse(&map, *start, 0, end, &mut visited);
-
-        // println!("{:?}", visited.get(&end));
-        if let Some(steps) = visited.get(&end) {
-            println!("{idx}: {steps}");
-            results.push(*steps);
-        }
-    }
-    let min = *results.iter().min().unwrap();
-    println!("{min}");
+    assert_eq!(part_1(&map), 490);
+    assert_eq!(part_2(&map), 488);
 }
