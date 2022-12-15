@@ -19,9 +19,6 @@ struct Point {
 fn produce_sand(cave: &mut HashMap<(u32, u32), Material>, max_y: u32) -> bool {
     let mut current_position = (500, 0);
 
-    // if let Some(m) = cave.get(&current_position) {
-    //     if Material !=
-    // }
     loop {
         if current_position.1 == max_y {
             return true;
@@ -54,21 +51,45 @@ fn produce_sand(cave: &mut HashMap<(u32, u32), Material>, max_y: u32) -> bool {
     false
 }
 
-fn draw_cave(cave: &HashMap<(u32, u32), Material>, min_x: u32, max_x: u32, max_y: u32) {
-    println!();
-    for y in 0..=max_y {
-        for x in min_x..=max_x {
-            match cave.get(&(x, y)) {
-                Some(m) => match m {
-                    Material::Air => print!("."),
-                    Material::Rock => print!("#"),
-                    Material::Sand => print!("o"),
-                },
-                None => print!("."),
+fn produce_sand2(cave: &mut HashMap<(u32, u32), Material>, max_y: u32) -> bool {
+    let mut current_position = (500, 0);
+
+    loop {
+        if cave.get(&(500, 0)).is_some() {
+            return true;
+        }
+        match cave
+            .get(&(current_position.0, current_position.1 + 1))
+            .unwrap_or(&Material::Air)
+        {
+            Material::Air => {
+                if current_position.1 + 1 > max_y + 1 {
+                    break;
+                } else {
+                    current_position.1 += 1;
+                }
+            }
+            Material::Rock | Material::Sand => {
+                if cave
+                    .get(&(current_position.0 - 1, current_position.1 + 1))
+                    .is_none()
+                {
+                    current_position.0 -= 1;
+                    current_position.1 += 1;
+                } else if cave
+                    .get(&(current_position.0 + 1, current_position.1 + 1))
+                    .is_none()
+                {
+                    current_position.0 += 1;
+                    current_position.1 += 1;
+                } else {
+                    break;
+                }
             }
         }
-        println!();
     }
+    cave.insert(current_position, Material::Sand);
+    false
 }
 
 fn main() {
@@ -113,7 +134,6 @@ fn main() {
     let mut cave = HashMap::new();
     for structure in structures {
         for (p1, p2) in structure.iter().zip(structure.iter().skip(1)) {
-            // println!("{p1:?} -> {p2:?}");
             if p1.x == p2.x {
                 for y in min(p1.y, p2.y)..=max(p1.y, p2.y) {
                     cave.insert((p1.x, y), Material::Rock);
@@ -126,12 +146,14 @@ fn main() {
         }
     }
 
-    // for _ in 0..25 {
-    //     dbg!(produce_sand(&mut cave, max_y));
-    //     draw_cave(&cave, min_x, max_x, max_y);
+    // for i in 0.. {
+    //     if produce_sand(&mut cave, max_y) {
+    //         println!("{i}");
+    //         break;
+    //     }
     // }
     for i in 0.. {
-        if produce_sand(&mut cave, max_y) {
+        if produce_sand2(&mut cave, max_y) {
             println!("{i}");
             break;
         }
