@@ -10,45 +10,30 @@ enum Material {
     Sand,
 }
 
-#[derive(Debug)]
-struct Point {
-    x: u32,
-    y: u32,
-}
-
 fn part_1(mut cave: HashMap<(u32, u32), Material>, max_y: u32) -> u32 {
     for i in 0.. {
-        let mut current_position = (500, 0);
+        let mut pos = (500, 0);
 
         loop {
-            if current_position.1 == max_y {
+            if pos.1 == max_y {
                 return i;
             }
-            match cave
-                .get(&(current_position.0, current_position.1 + 1))
-                .unwrap_or(&Material::Air)
-            {
-                Material::Air => current_position.1 += 1,
+            match cave.get(&(pos.0, pos.1 + 1)).unwrap_or(&Material::Air) {
+                Material::Air => pos.1 += 1,
                 Material::Rock | Material::Sand => {
-                    if cave
-                        .get(&(current_position.0 - 1, current_position.1 + 1))
-                        .is_none()
-                    {
-                        current_position.0 -= 1;
-                        current_position.1 += 1;
-                    } else if cave
-                        .get(&(current_position.0 + 1, current_position.1 + 1))
-                        .is_none()
-                    {
-                        current_position.0 += 1;
-                        current_position.1 += 1;
+                    if cave.get(&(pos.0 - 1, pos.1 + 1)).is_none() {
+                        pos.0 -= 1;
+                        pos.1 += 1;
+                    } else if cave.get(&(pos.0 + 1, pos.1 + 1)).is_none() {
+                        pos.0 += 1;
+                        pos.1 += 1;
                     } else {
                         break;
                     }
                 }
             }
         }
-        cave.insert(current_position, Material::Sand);
+        cave.insert(pos, Material::Sand);
     }
 
     unreachable!()
@@ -56,42 +41,33 @@ fn part_1(mut cave: HashMap<(u32, u32), Material>, max_y: u32) -> u32 {
 
 fn part_2(mut cave: HashMap<(u32, u32), Material>, max_y: u32) -> u32 {
     for i in 0.. {
-        let mut current_position = (500, 0);
+        let mut pos = (500, 0);
         loop {
             if cave.get(&(500, 0)).is_some() {
                 return i;
             }
-            match cave
-                .get(&(current_position.0, current_position.1 + 1))
-                .unwrap_or(&Material::Air)
-            {
+            match cave.get(&(pos.0, pos.1 + 1)).unwrap_or(&Material::Air) {
                 Material::Air => {
-                    if current_position.1 + 1 > max_y + 1 {
+                    if pos.1 + 1 > max_y + 1 {
                         break;
                     } else {
-                        current_position.1 += 1;
+                        pos.1 += 1;
                     }
                 }
                 Material::Rock | Material::Sand => {
-                    if cave
-                        .get(&(current_position.0 - 1, current_position.1 + 1))
-                        .is_none()
-                    {
-                        current_position.0 -= 1;
-                        current_position.1 += 1;
-                    } else if cave
-                        .get(&(current_position.0 + 1, current_position.1 + 1))
-                        .is_none()
-                    {
-                        current_position.0 += 1;
-                        current_position.1 += 1;
+                    if cave.get(&(pos.0 - 1, pos.1 + 1)).is_none() {
+                        pos.0 -= 1;
+                        pos.1 += 1;
+                    } else if cave.get(&(pos.0 + 1, pos.1 + 1)).is_none() {
+                        pos.0 += 1;
+                        pos.1 += 1;
                     } else {
                         break;
                     }
                 }
             }
         }
-        cave.insert(current_position, Material::Sand);
+        cave.insert(pos, Material::Sand);
     }
     unreachable!()
 }
@@ -99,43 +75,35 @@ fn part_2(mut cave: HashMap<(u32, u32), Material>, max_y: u32) -> u32 {
 fn main() {
     let input = std::fs::read_to_string("input").unwrap();
 
-    let structures = input
-        .lines()
-        .map(|l| {
-            let points = l.split(" -> ");
-            points
-                .map(|s| {
-                    let mut coords = s.split(',');
-                    Point {
-                        x: coords.next().unwrap().parse::<u32>().unwrap(),
-                        y: coords.next().unwrap().parse::<u32>().unwrap(),
-                    }
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
-
-    let max_y = structures
-        .iter()
-        .map(|s| s.iter().max_by(|&p1, &p2| p1.y.cmp(&p2.y)).unwrap().y)
-        .max()
-        .unwrap();
-
     let mut cave = HashMap::new();
-    for structure in structures {
-        for (p1, p2) in structure.iter().zip(structure.iter().skip(1)) {
-            if p1.x == p2.x {
-                for y in min(p1.y, p2.y)..=max(p1.y, p2.y) {
-                    cave.insert((p1.x, y), Material::Rock);
-                }
-            } else {
-                for x in min(p1.x, p2.x)..=max(p1.x, p2.x) {
-                    cave.insert((x, p1.y), Material::Rock);
+    input.lines().for_each(|l| {
+        let mut previous_point = None;
+        let points = l.split(" -> ");
+        points.for_each(|s| {
+            let mut coords = s.split(',');
+            let (x, y) = (
+                coords.next().unwrap().parse::<u32>().unwrap(),
+                coords.next().unwrap().parse::<u32>().unwrap(),
+            );
+
+            if let Some((prev_x, prev_y)) = previous_point {
+                if x == prev_x {
+                    for y in min(y, prev_y)..=max(y, prev_y) {
+                        cave.insert((x, y), Material::Rock);
+                    }
+                } else {
+                    for x in min(x, prev_x)..=max(x, prev_x) {
+                        cave.insert((x, y), Material::Rock);
+                    }
                 }
             }
-        }
-    }
+
+            previous_point = Some((x, y));
+        });
+    });
+
+    let max_y = cave.keys().max_by(|lhs, rhs| lhs.1.cmp(&rhs.1)).unwrap().1;
 
     assert_eq!(part_1(cave.clone(), max_y), 592);
-    assert_eq!(part_2(cave.clone(), max_y), 30367);
+    assert_eq!(part_2(cave, max_y), 30367);
 }
