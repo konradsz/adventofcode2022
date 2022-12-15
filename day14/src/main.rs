@@ -3,7 +3,7 @@ use std::{
     collections::HashMap,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum Material {
     Air,
     Rock,
@@ -16,80 +16,84 @@ struct Point {
     y: u32,
 }
 
-fn produce_sand(cave: &mut HashMap<(u32, u32), Material>, max_y: u32) -> bool {
-    let mut current_position = (500, 0);
+fn part_1(mut cave: HashMap<(u32, u32), Material>, max_y: u32) -> u32 {
+    for i in 0.. {
+        let mut current_position = (500, 0);
 
-    loop {
-        if current_position.1 == max_y {
-            return true;
-        }
-        match cave
-            .get(&(current_position.0, current_position.1 + 1))
-            .unwrap_or(&Material::Air)
-        {
-            Material::Air => current_position.1 += 1,
-            Material::Rock | Material::Sand => {
-                if cave
-                    .get(&(current_position.0 - 1, current_position.1 + 1))
-                    .is_none()
-                {
-                    current_position.0 -= 1;
-                    current_position.1 += 1;
-                } else if cave
-                    .get(&(current_position.0 + 1, current_position.1 + 1))
-                    .is_none()
-                {
-                    current_position.0 += 1;
-                    current_position.1 += 1;
-                } else {
-                    break;
+        loop {
+            if current_position.1 == max_y {
+                return i;
+            }
+            match cave
+                .get(&(current_position.0, current_position.1 + 1))
+                .unwrap_or(&Material::Air)
+            {
+                Material::Air => current_position.1 += 1,
+                Material::Rock | Material::Sand => {
+                    if cave
+                        .get(&(current_position.0 - 1, current_position.1 + 1))
+                        .is_none()
+                    {
+                        current_position.0 -= 1;
+                        current_position.1 += 1;
+                    } else if cave
+                        .get(&(current_position.0 + 1, current_position.1 + 1))
+                        .is_none()
+                    {
+                        current_position.0 += 1;
+                        current_position.1 += 1;
+                    } else {
+                        break;
+                    }
                 }
             }
         }
+        cave.insert(current_position, Material::Sand);
     }
-    cave.insert(current_position, Material::Sand);
-    false
+
+    unreachable!()
 }
 
-fn produce_sand2(cave: &mut HashMap<(u32, u32), Material>, max_y: u32) -> bool {
-    let mut current_position = (500, 0);
-
-    loop {
-        if cave.get(&(500, 0)).is_some() {
-            return true;
-        }
-        match cave
-            .get(&(current_position.0, current_position.1 + 1))
-            .unwrap_or(&Material::Air)
-        {
-            Material::Air => {
-                if current_position.1 + 1 > max_y + 1 {
-                    break;
-                } else {
-                    current_position.1 += 1;
+fn part_2(mut cave: HashMap<(u32, u32), Material>, max_y: u32) -> u32 {
+    for i in 0.. {
+        let mut current_position = (500, 0);
+        loop {
+            if cave.get(&(500, 0)).is_some() {
+                return i;
+            }
+            match cave
+                .get(&(current_position.0, current_position.1 + 1))
+                .unwrap_or(&Material::Air)
+            {
+                Material::Air => {
+                    if current_position.1 + 1 > max_y + 1 {
+                        break;
+                    } else {
+                        current_position.1 += 1;
+                    }
+                }
+                Material::Rock | Material::Sand => {
+                    if cave
+                        .get(&(current_position.0 - 1, current_position.1 + 1))
+                        .is_none()
+                    {
+                        current_position.0 -= 1;
+                        current_position.1 += 1;
+                    } else if cave
+                        .get(&(current_position.0 + 1, current_position.1 + 1))
+                        .is_none()
+                    {
+                        current_position.0 += 1;
+                        current_position.1 += 1;
+                    } else {
+                        break;
+                    }
                 }
             }
-            Material::Rock | Material::Sand => {
-                if cave
-                    .get(&(current_position.0 - 1, current_position.1 + 1))
-                    .is_none()
-                {
-                    current_position.0 -= 1;
-                    current_position.1 += 1;
-                } else if cave
-                    .get(&(current_position.0 + 1, current_position.1 + 1))
-                    .is_none()
-                {
-                    current_position.0 += 1;
-                    current_position.1 += 1;
-                } else {
-                    break;
-                }
-            }
         }
+        cave.insert(current_position, Material::Sand);
     }
-    cave.insert(current_position, Material::Sand);
-    false
+    unreachable!()
 }
 
 fn main() {
@@ -111,25 +115,11 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
-    let min_x = structures
-        .iter()
-        .map(|s| s.iter().min_by(|&p1, &p2| p1.x.cmp(&p2.x)).unwrap().x)
-        .min()
-        .unwrap();
-
-    let max_x = structures
-        .iter()
-        .map(|s| s.iter().max_by(|&p1, &p2| p1.x.cmp(&p2.x)).unwrap().x)
-        .max()
-        .unwrap();
-
     let max_y = structures
         .iter()
         .map(|s| s.iter().max_by(|&p1, &p2| p1.y.cmp(&p2.y)).unwrap().y)
         .max()
         .unwrap();
-
-    // println!("{min_x}, {max_x}, {max_y}");
 
     let mut cave = HashMap::new();
     for structure in structures {
@@ -146,16 +136,6 @@ fn main() {
         }
     }
 
-    // for i in 0.. {
-    //     if produce_sand(&mut cave, max_y) {
-    //         println!("{i}");
-    //         break;
-    //     }
-    // }
-    for i in 0.. {
-        if produce_sand2(&mut cave, max_y) {
-            println!("{i}");
-            break;
-        }
-    }
+    assert_eq!(part_1(cave.clone(), max_y), 592);
+    assert_eq!(part_2(cave.clone(), max_y), 30367);
 }
