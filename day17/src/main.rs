@@ -1,16 +1,14 @@
 use std::collections::HashSet;
 
 fn get_shape(turn: u64) -> Vec<(u32, u32)> {
-    let shape = match turn % 5 {
+    match turn % 5 {
         0 => vec![(2, 3), (3, 3), (4, 3), (5, 3)],
         1 => vec![(2, 4), (3, 5), (3, 4), (3, 3), (4, 4)],
         2 => vec![(2, 3), (3, 3), (4, 5), (4, 4), (4, 3)],
         3 => vec![(2, 6), (2, 5), (2, 4), (2, 3)],
         4 => vec![(2, 4), (3, 4), (2, 3), (3, 3)],
         _ => unreachable!(),
-    };
-
-    shape
+    }
 }
 
 fn try_moving_left(room: &HashSet<(u32, u32)>, shape: Vec<(u32, u32)>) -> Vec<(u32, u32)> {
@@ -39,7 +37,7 @@ fn try_moving_right(room: &HashSet<(u32, u32)>, shape: Vec<(u32, u32)>) -> Vec<(
     }
 }
 
-fn try_moving_down(room: &HashSet<(u32, u32)>, shape: &mut Vec<(u32, u32)>) -> bool {
+fn try_moving_down(room: &HashSet<(u32, u32)>, shape: &mut [(u32, u32)]) -> bool {
     if shape.iter().any(|(_, y)| y == &0) {
         return false;
     }
