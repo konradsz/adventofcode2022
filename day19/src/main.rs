@@ -8,15 +8,12 @@ enum Material {
     Geode,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 struct State {
-    minute: u32,
-
-    ore_per_minute: u32,
-    clay_per_minute: u32,
-    obsidian_per_minute: u32,
-    geode_per_minute: u32,
-
+    ore_robots: u32,
+    clay_robots: u32,
+    obsidian_robots: u32,
+    geode_robots: u32,
     ore: u32,
     clay: u32,
     obsidian: u32,
@@ -26,11 +23,10 @@ struct State {
 impl State {
     fn new() -> Self {
         Self {
-            minute: 0,
-            ore_per_minute: 1,
-            clay_per_minute: 0,
-            obsidian_per_minute: 0,
-            geode_per_minute: 0,
+            ore_robots: 1,
+            clay_robots: 0,
+            obsidian_robots: 0,
+            geode_robots: 0,
             ore: 0,
             clay: 0,
             obsidian: 0,
@@ -38,55 +34,41 @@ impl State {
         }
     }
 
-    fn collect_materials(self) -> Self {
+    fn mine(self) -> Self {
         Self {
-            ore: self.ore + self.ore_per_minute,
-            clay: self.clay + self.clay_per_minute,
-            obsidian: self.obsidian + self.obsidian_per_minute,
-            geode: self.geode + self.geode_per_minute,
+            ore: self.ore + self.ore_robots,
+            clay: self.clay + self.clay_robots,
+            obsidian: self.obsidian + self.obsidian_robots,
+            geode: self.geode + self.geode_robots,
             ..self
         }
     }
 
-    fn mine(self) -> Self {
-        let new_state = self.collect_materials();
-        Self {
-            minute: new_state.minute + 1,
-            ..new_state
-        }
-    }
-
-    fn construct_robot(self, materials_needed: (u32, u32, u32)) -> Option<Self> {
-        if self.ore >= materials_needed.0
+    fn construct_robot(self, materials_needed: &(u32, u32, u32)) -> Option<Self> {
+        (self.ore >= materials_needed.0
             && self.clay >= materials_needed.1
-            && self.obsidian >= materials_needed.2
-        {
-            let mut new_state = self.collect_materials();
-            new_state.ore -= materials_needed.0;
-            new_state.clay -= materials_needed.1;
-            new_state.obsidian -= materials_needed.2;
-
-            Some(Self {
-                minute: new_state.minute + 1,
-                ..new_state
+            && self.obsidian >= materials_needed.2)
+            .then_some({
+                let mut new_state = self.mine();
+                new_state.ore -= materials_needed.0;
+                new_state.clay -= materials_needed.1;
+                new_state.obsidian -= materials_needed.2;
+                new_state
             })
-        } else {
-            None
-        }
     }
 
     fn construct_ore_robot(self, blueprint: &HashMap<Material, (u32, u32, u32)>) -> Option<Self> {
-        let materials_needed = blueprint.get(&Material::Ore).cloned().unwrap();
+        let materials_needed = blueprint.get(&Material::Ore).unwrap();
         self.construct_robot(materials_needed).map(|s| State {
-            ore_per_minute: s.ore_per_minute + 1,
+            ore_robots: s.ore_robots + 1,
             ..s
         })
     }
 
     fn construct_clay_robot(self, blueprint: &HashMap<Material, (u32, u32, u32)>) -> Option<Self> {
-        let materials_needed = blueprint.get(&Material::Clay).cloned().unwrap();
+        let materials_needed = blueprint.get(&Material::Clay).unwrap();
         self.construct_robot(materials_needed).map(|s| State {
-            clay_per_minute: s.clay_per_minute + 1,
+            clay_robots: s.clay_robots + 1,
             ..s
         })
     }
@@ -95,17 +77,17 @@ impl State {
         self,
         blueprint: &HashMap<Material, (u32, u32, u32)>,
     ) -> Option<Self> {
-        let materials_needed = blueprint.get(&Material::Obsidian).cloned().unwrap();
+        let materials_needed = blueprint.get(&Material::Obsidian).unwrap();
         self.construct_robot(materials_needed).map(|s| State {
-            obsidian_per_minute: s.obsidian_per_minute + 1,
+            obsidian_robots: s.obsidian_robots + 1,
             ..s
         })
     }
 
     fn construct_geode_robot(self, blueprint: &HashMap<Material, (u32, u32, u32)>) -> Option<Self> {
-        let materials_needed = blueprint.get(&Material::Geode).cloned().unwrap();
+        let materials_needed = blueprint.get(&Material::Geode).unwrap();
         self.construct_robot(materials_needed).map(|s| State {
-            geode_per_minute: s.geode_per_minute + 1,
+            geode_robots: s.geode_robots + 1,
             ..s
         })
     }
@@ -188,47 +170,41 @@ fn part_2(blueprints: &[HashMap<Material, (u32, u32, u32)>]) -> u32 {
 
 fn count_geodes(blueprint: &HashMap<Material, (u32, u32, u32)>, minutes: u32) -> u32 {
     let state = State::new();
-
     let mut states = VecDeque::new();
-    states.push_back(state);
+    states.push_back((0, state));
 
     let mut max = u32::MIN;
     let mut best_geodes = HashMap::new();
     let mut seen_states = HashSet::new();
-    while let Some(state) = states.pop_front() {
-        let mut state_to_cache = state.clone();
-        state_to_cache.minute = 0;
-        if !seen_states.insert(state_to_cache) {
-            continue;
-        }
-        if state.minute == minutes {
+    while let Some((minute, state)) = states.pop_front() {
+        if minute == minutes || !seen_states.insert(state) {
             max = std::cmp::max(max, state.geode);
             continue;
         }
 
-        let entry = best_geodes.entry(state.minute).or_insert(0);
+        let entry = best_geodes.entry(minute).or_insert(0);
         if *entry > state.geode {
             continue;
         } else {
             *entry = state.geode;
         }
 
-        if let Some(s) = state.clone().construct_geode_robot(blueprint) {
-            states.push_back(s);
+        if let Some(s) = state.construct_geode_robot(blueprint) {
+            states.push_back((minute + 1, s));
         } else {
-            if let Some(s) = state.clone().construct_ore_robot(blueprint) {
-                states.push_back(s);
+            if let Some(s) = state.construct_ore_robot(blueprint) {
+                states.push_back((minute + 1, s));
             }
 
-            if let Some(s) = state.clone().construct_clay_robot(blueprint) {
-                states.push_back(s);
+            if let Some(s) = state.construct_clay_robot(blueprint) {
+                states.push_back((minute + 1, s));
             }
 
-            if let Some(s) = state.clone().construct_obsidian_robot(blueprint) {
-                states.push_back(s);
+            if let Some(s) = state.construct_obsidian_robot(blueprint) {
+                states.push_back((minute + 1, s));
             }
 
-            states.push_back(state.clone().mine());
+            states.push_back((minute + 1, state.mine()));
         }
     }
 
@@ -239,6 +215,6 @@ fn main() {
     let input = std::fs::read_to_string("input").unwrap();
     let blueprints = input.lines().map(parse_input_line).collect::<Vec<_>>();
 
-    // assert_eq!(part_1(&blueprints), 1023);
+    assert_eq!(part_1(&blueprints), 1023);
     assert_eq!(part_2(&blueprints), 13520);
 }
