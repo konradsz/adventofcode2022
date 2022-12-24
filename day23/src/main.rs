@@ -1,9 +1,38 @@
-use std::collections::HashSet;
+use std::{
+    cmp::{max, min},
+    collections::HashSet,
+};
 
+const DIRECTIONS: [[(i64, i64); 3]; 4] = [
+    [(-1, -1), (0, -1), (1, -1)],
+    [(-1, 1), (0, 1), (1, 1)],
+    [(-1, -1), (-1, 0), (-1, 1)],
+    [(1, -1), (1, 0), (1, 1)],
+];
+
+const NEIGHBOURS: [(i64, i64); 8] = [
+    (-1, -1),
+    (0, -1),
+    (1, -1),
+    (-1, 0),
+    (1, 0),
+    (-1, 1),
+    (0, 1),
+    (1, 1),
+];
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct Coordinates {
     x: i64,
     y: i64,
+}
+
+impl Coordinates {
+    fn move_by(self, offset: (i64, i64)) -> Self {
+        Coordinates {
+            x: self.x + offset.0,
+            y: self.y + offset.1,
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -21,17 +50,7 @@ impl Elf {
     }
 
     fn propose_new_position(&mut self, occupied_positions: &HashSet<Coordinates>, turn: usize) {
-        let neighbours = [
-            (-1, -1),
-            (0, -1),
-            (1, -1),
-            (-1, 0),
-            (1, 0),
-            (-1, 1),
-            (0, 1),
-            (1, 1),
-        ];
-        if neighbours.iter().all(|n| {
+        if NEIGHBOURS.iter().all(|n| {
             occupied_positions
                 .get(&Coordinates {
                     x: self.position.x + n.0,
@@ -41,37 +60,25 @@ impl Elf {
         }) {
             return;
         }
-        let directions = [
-            [(-1, -1), (0, -1), (1, -1)],
-            [(-1, 1), (0, 1), (1, 1)],
-            [(-1, -1), (-1, 0), (-1, 1)],
-            [(1, -1), (1, 0), (1, 1)],
-        ];
         for i in 0..4 {
-            let dir = directions[(turn + i) % directions.len()];
-            let p1 = Coordinates {
-                x: self.position.x + dir[0].0,
-                y: self.position.y + dir[0].1,
-            };
-            let p2 = Coordinates {
-                x: self.position.x + dir[1].0,
-                y: self.position.y + dir[1].1,
-            };
-            let p3 = Coordinates {
-                x: self.position.x + dir[2].0,
-                y: self.position.y + dir[2].1,
-            };
-            if occupied_positions.get(&p1).is_none()
-                && occupied_positions.get(&p2).is_none()
-                && occupied_positions.get(&p3).is_none()
+            let dir = DIRECTIONS[(turn + i) % DIRECTIONS.len()];
+            if occupied_positions
+                .get(&self.position.move_by(dir[0]))
+                .is_none()
+                && occupied_positions
+                    .get(&self.position.move_by(dir[1]))
+                    .is_none()
+                && occupied_positions
+                    .get(&self.position.move_by(dir[2]))
+                    .is_none()
             {
-                self.proposed_position = Some(p2);
+                self.proposed_position = Some(self.position.move_by(dir[1]));
                 break;
             }
         }
     }
 
-    fn move_if_allowed(&mut self, conflicted_positions: &Vec<Coordinates>) {
+    fn move_if_allowed(&mut self, conflicted_positions: &[Coordinates]) {
         let position_candidate = self.proposed_position.take();
         if let Some(position_candidate) = position_candidate {
             if !conflicted_positions.contains(&position_candidate) {
@@ -82,60 +89,42 @@ impl Elf {
 }
 
 fn count_empty(positions: &HashSet<Coordinates>) -> usize {
-    let min_x = positions
-        .iter()
-        .min_by(|lhs, rhs| lhs.x.cmp(&rhs.x))
-        .unwrap()
-        .x;
-    let max_x = positions
-        .iter()
-        .max_by(|lhs, rhs| lhs.x.cmp(&rhs.x))
-        .unwrap()
-        .x;
-    let min_y = positions
-        .iter()
-        .min_by(|lhs, rhs| lhs.y.cmp(&rhs.y))
-        .unwrap()
-        .y;
-    let max_y = positions
-        .iter()
-        .max_by(|lhs, rhs| lhs.y.cmp(&rhs.y))
-        .unwrap()
-        .y;
+    let ((min_x, max_x), (min_y, max_y)) = positions.iter().fold(
+        ((i64::MAX, i64::MIN), (i64::MAX, i64::MIN)),
+        |((min_x, max_x), (min_y, max_y)), coord| {
+            (
+                (min(min_x, coord.x), max(max_x, coord.x)),
+                (min(min_y, coord.y), max(max_y, coord.y)),
+            )
+        },
+    );
 
-    let mut empty = 0;
-    for y in min_y..=max_y {
-        for x in min_x..=max_x {
-            if positions.get(&Coordinates { x, y }).is_none() {
-                empty += 1;
-            }
-        }
-    }
-    empty
+    (min_y..=max_y)
+        .map(|y| {
+            (min_x..=max_x)
+                .filter(|&x| positions.get(&Coordinates { x, y }).is_none())
+                .count()
+        })
+        .sum()
 }
 
-fn simulate_round(elves: &mut Vec<Elf>, turn: usize) -> bool {
+fn simulate_round(elves: &mut [Elf], turn: usize) -> bool {
     let occupied_positions = elves.iter().map(|elf| elf.position).collect::<HashSet<_>>();
     elves
         .iter_mut()
         .for_each(|el| el.propose_new_position(&occupied_positions, turn));
     let mut proposed_positions = HashSet::new();
-    let mut conflicted_positions = Vec::new();
-    for elf in elves.iter() {
-        if let Some(pp) = elf.proposed_position {
-            if !proposed_positions.insert(pp) {
-                conflicted_positions.push(pp);
-            }
-        }
-    }
+    let conflicted_positions = elves
+        .iter()
+        .filter_map(|elf| elf.proposed_position)
+        .filter(|pp| !proposed_positions.insert(*pp))
+        .collect::<Vec<_>>();
 
     for elf in elves.iter_mut() {
         elf.move_if_allowed(&conflicted_positions);
     }
 
     let positions = elves.iter().map(|elf| elf.position).collect::<HashSet<_>>();
-    count_empty(&positions);
-
     occupied_positions == positions
 }
 
@@ -155,16 +144,18 @@ fn part_2(mut elves: Vec<Elf>) -> usize {
 
 fn main() {
     let input = std::fs::read_to_string("input").unwrap();
-
-    let mut elves = Vec::new();
-    for (y, line) in input.lines().enumerate() {
-        for (x, c) in line.chars().enumerate() {
-            if c == '#' {
-                elves.push(Elf::new(x as i64, y as i64));
-            }
-        }
-    }
+    let elves = input
+        .lines()
+        .enumerate()
+        .flat_map(|(y, line)| {
+            line.chars()
+                .enumerate()
+                .filter(|(_, c)| c == &'#')
+                .map(|(x, _)| Elf::new(x as i64, y as i64))
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
 
     assert_eq!(part_1(elves.clone()), 3762);
-    assert_eq!(part_2(elves.clone()), 997);
+    assert_eq!(part_2(elves), 997);
 }
