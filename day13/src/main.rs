@@ -35,12 +35,12 @@ impl Ord for PacketElement {
     }
 }
 
-fn create_list(input: &mut VecDeque<char>) -> Vec<PacketElement> {
+fn parse_list(input: &mut VecDeque<char>) -> Vec<PacketElement> {
     let mut result = vec![];
     loop {
         let front = input.pop_front().unwrap();
         match front {
-            '[' => result.push(PacketElement::List(create_list(input))),
+            '[' => result.push(PacketElement::List(parse_list(input))),
             ',' | ' ' => (),
             '1' => {
                 let next = input.front().unwrap();
@@ -62,44 +62,52 @@ fn create_list(input: &mut VecDeque<char>) -> Vec<PacketElement> {
     }
 }
 
-fn build(input: &mut VecDeque<char>) -> PacketElement {
+fn parse(input: &mut VecDeque<char>) -> PacketElement {
     input.pop_front();
-    return PacketElement::List(create_list(input));
+    PacketElement::List(parse_list(input))
+}
+
+fn part_1(pairs: &[&str]) -> usize {
+    pairs
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, pair)| {
+            let (lhs, rhs) = pair.split_once('\n').unwrap();
+            let lhs = parse(&mut lhs.chars().collect());
+            let rhs = parse(&mut rhs.chars().collect());
+            lhs.cmp(&rhs).is_lt().then_some(idx + 1)
+        })
+        .sum()
+}
+
+fn part_2(pairs: &[&str]) -> usize {
+    let mut packets = vec![];
+    for pair in pairs {
+        let (lhs, rhs) = pair.split_once('\n').unwrap();
+        let lhs = parse(&mut lhs.chars().collect());
+        let rhs = parse(&mut rhs.chars().collect());
+        packets.push(lhs);
+        packets.push(rhs);
+    }
+
+    let divider1 = PacketElement::List(vec![PacketElement::List(vec![PacketElement::Integer(2)])]);
+    packets.push(divider1.clone());
+
+    let divider2 = PacketElement::List(vec![PacketElement::List(vec![PacketElement::Integer(6)])]);
+    packets.push(divider2.clone());
+
+    packets.sort();
+
+    let p1 = packets.iter().position(|e| e == &divider1).unwrap();
+    let p2 = packets.iter().position(|e| e == &divider2).unwrap();
+
+    (p1 + 1) * (p2 + 1)
 }
 
 fn main() {
     let input = std::fs::read_to_string("input").unwrap();
-    let input = input.lines().collect::<Vec<_>>();
+    let pairs = input.split("\n\n").collect::<Vec<_>>();
 
-    let mut all = vec![];
-
-    let mut sum = 0;
-    for i in (0..input.len()).step_by(3) {
-        let mut lhs = input[i].chars().collect();
-        let mut rhs = input[i + 1].chars().collect();
-
-        let lhs = build(&mut lhs);
-        let rhs = build(&mut rhs);
-
-        all.push(lhs.clone());
-        all.push(rhs.clone());
-
-        if lhs.cmp(&rhs).is_lt() {
-            sum += (i / 3) + 1;
-        }
-    }
-
-    let d1 = PacketElement::List(vec![PacketElement::List(vec![PacketElement::Integer(2)])]);
-    all.push(d1.clone());
-
-    let d2 = PacketElement::List(vec![PacketElement::List(vec![PacketElement::Integer(6)])]);
-    all.push(d2.clone());
-    all.sort();
-
-    let p1 = all.iter().position(|e| e == &d1).unwrap();
-    let p2 = all.iter().position(|e| e == &d2).unwrap();
-    // println!("{all:?}");
-
-    println!("{sum}");
-    println!("{}", (p1 + 1) * (p2 + 1));
+    assert_eq!(part_1(&pairs), 5717);
+    assert_eq!(part_2(&pairs), 25935);
 }
