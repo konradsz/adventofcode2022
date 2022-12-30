@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-#[derive(Debug)]
+#[derive(Clone)]
 struct Monkey {
     items: VecDeque<u64>,
     operation: fn(u64) -> u64,
@@ -29,17 +29,17 @@ impl Monkey {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone)]
 struct Monkeys(Vec<Monkey>);
 
 impl Monkeys {
-    fn play_round(&mut self) {
+    fn play_round(&mut self, after_inspect: fn(u64) -> u64) {
         let mut current_monkey = 0;
         loop {
             if let Some(mut item) = self.0[current_monkey].items.pop_front() {
                 self.0[current_monkey].inspected_items += 1;
                 item = (self.0[current_monkey].operation)(item);
-                item /= 3;
+                item = after_inspect(item);
                 if item % self.0[current_monkey].test == 0 {
                     let new_owner = self.0[current_monkey].when_true;
                     self.0[new_owner].items.push_back(item);
@@ -55,6 +55,28 @@ impl Monkeys {
             }
         }
     }
+}
+
+fn part_1(mut monkeys: Monkeys) -> u64 {
+    for _ in 0..20 {
+        monkeys.play_round(|worry_level| worry_level / 3);
+    }
+
+    monkeys
+        .0
+        .sort_by(|m1, m2| m2.inspected_items.cmp(&m1.inspected_items));
+    monkeys.0[0].inspected_items * monkeys.0[1].inspected_items
+}
+
+fn part_2(mut monkeys: Monkeys) -> u64 {
+    for _ in 0..10000 {
+        monkeys.play_round(|worry_level| worry_level % (2 * 17 * 19 * 3 * 5 * 13 * 7 * 11))
+    }
+
+    monkeys
+        .0
+        .sort_by(|m1, m2| m2.inspected_items.cmp(&m1.inspected_items));
+    monkeys.0[0].inspected_items * monkeys.0[1].inspected_items
 }
 
 fn main() {
@@ -87,14 +109,8 @@ fn main() {
         ),
     ];
 
-    let mut monkeys = Monkeys(monkeys);
-    for _ in 0..20 {
-        monkeys.play_round();
-    }
+    let monkeys = Monkeys(monkeys);
 
-    monkeys
-        .0
-        .sort_by(|m1, m2| m2.inspected_items.cmp(&m1.inspected_items));
-    let monkey_business = monkeys.0[0].inspected_items * monkeys.0[1].inspected_items;
-    assert_eq!(monkey_business, 112815);
+    assert_eq!(part_1(monkeys.clone()), 112815);
+    assert_eq!(part_2(monkeys), 25738411485);
 }
