@@ -90,66 +90,66 @@ impl Map {
             .for_each(|b| b.move_once(self.width, self.height));
     }
 
-    fn get_expedition_possible_positions(&self) -> Vec<Coordinates> {
+    fn get_expedition_possible_positions(&self) -> Vec<Option<Coordinates>> {
         if let Some(exp) = self.expedition {
-            let dirs: [(i32, i32); 4] = [(0, -1), (0, 1), (-1, 0), (1, 0)];
             let mut positions = vec![];
             if self.get_blizzard_count(exp) == 0 {
-                positions.push(exp); // don't move
+                positions.push(Some(exp)); // don't move
             }
             if exp.y != 0 && self.get_blizzard_count(Coordinates::new(exp.x, exp.y - 1)) == 0 {
-                positions.push(Coordinates::new(exp.x, exp.y - 1)); // go up
+                positions.push(Some(Coordinates::new(exp.x, exp.y - 1))); // go up
             }
             if exp.y != self.height - 1
                 && self.get_blizzard_count(Coordinates::new(exp.x, exp.y + 1)) == 0
             {
-                positions.push(Coordinates::new(exp.x, exp.y + 1)); // go down
+                positions.push(Some(Coordinates::new(exp.x, exp.y + 1))); // go down
             }
             if exp.x != 0 && self.get_blizzard_count(Coordinates::new(exp.x - 1, exp.y)) == 0 {
-                positions.push(Coordinates::new(exp.x - 1, exp.y)); // go left
+                positions.push(Some(Coordinates::new(exp.x - 1, exp.y))); // go left
             }
             if exp.x != self.width - 1
                 && self.get_blizzard_count(Coordinates::new(exp.x + 1, exp.y)) == 0
             {
-                positions.push(Coordinates::new(exp.x + 1, exp.y)); // go right
+                positions.push(Some(Coordinates::new(exp.x + 1, exp.y))); // go right
             }
             positions
         } else if self.get_blizzard_count(Coordinates::new(0, 0)) == 0 {
-            vec![Coordinates::new(0, 0)]
+            vec![None, Some(Coordinates::new(0, 0))]
         } else {
-            vec![]
+            vec![None]
         }
     }
 
-    fn get_expedition_possible_positions2(&self) -> Vec<Coordinates> {
+    fn get_expedition_possible_positions2(&self) -> Vec<Option<Coordinates>> {
         if let Some(exp) = self.expedition {
-            let dirs: [(i32, i32); 4] = [(0, -1), (0, 1), (-1, 0), (1, 0)];
             let mut positions = vec![];
             if self.get_blizzard_count(exp) == 0 {
-                positions.push(exp); // don't move
+                positions.push(Some(exp)); // don't move
             }
             if exp.y != 0 && self.get_blizzard_count(Coordinates::new(exp.x, exp.y - 1)) == 0 {
-                positions.push(Coordinates::new(exp.x, exp.y - 1)); // go up
+                positions.push(Some(Coordinates::new(exp.x, exp.y - 1))); // go up
             }
             if exp.y != self.height - 1
                 && self.get_blizzard_count(Coordinates::new(exp.x, exp.y + 1)) == 0
             {
-                positions.push(Coordinates::new(exp.x, exp.y + 1)); // go down
+                positions.push(Some(Coordinates::new(exp.x, exp.y + 1))); // go down
             }
             if exp.x != 0 && self.get_blizzard_count(Coordinates::new(exp.x - 1, exp.y)) == 0 {
-                positions.push(Coordinates::new(exp.x - 1, exp.y)); // go left
+                positions.push(Some(Coordinates::new(exp.x - 1, exp.y))); // go left
             }
             if exp.x != self.width - 1
                 && self.get_blizzard_count(Coordinates::new(exp.x + 1, exp.y)) == 0
             {
-                positions.push(Coordinates::new(exp.x + 1, exp.y)); // go right
+                positions.push(Some(Coordinates::new(exp.x + 1, exp.y))); // go right
             }
             positions
         } else if self.get_blizzard_count(Coordinates::new(self.width - 1, self.height - 1)) == 0 {
-            vec![Coordinates::new(self.width - 1, self.height - 1)]
+            vec![
+                None,
+                Some(Coordinates::new(self.width - 1, self.height - 1)),
+            ]
         } else {
-            println!("here");
-            vec![Coordinates::new(self.width - 1, self.height - 1)]
+            vec![None]
         }
     }
 
@@ -158,35 +158,6 @@ impl Map {
             .iter()
             .filter(|b| b.coordinates == coordinates)
             .count()
-    }
-
-    fn get_blizzards(&self, coordinates: Coordinates) -> Vec<Blizzard> {
-        self.blizzards
-            .iter()
-            .filter(|b| b.coordinates == coordinates)
-            .copied()
-            .collect()
-    }
-
-    fn draw(&self) {
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let blizzards = self.get_blizzards(Coordinates { x, y });
-                if blizzards.is_empty() {
-                    print!(".");
-                } else if blizzards.len() == 1 {
-                    match blizzards[0].direction {
-                        Direction::Up => print!("^"),
-                        Direction::Down => print!("v"),
-                        Direction::Left => print!("<"),
-                        Direction::Right => print!(">"),
-                    }
-                } else {
-                    print!("{}", blizzards.len());
-                }
-            }
-            println!();
-        }
     }
 }
 
@@ -212,19 +183,8 @@ fn main() {
 
     let mut map = Map::new(width, height, blizzards);
 
-    // map.draw();
-
-    // for minute in 0..18 {
-    //     println!();
-    //     println!("{minute}");
-    //     map.move_blizzards();
-    //     map.draw();
-    // }
-
     let mut states = VecDeque::new();
     states.push_back((1, map.clone()));
-    let mut max_x = 0;
-    let mut max_y = 0;
     let mut seen_states: HashSet<Map> = HashSet::new();
     let mut f = map.clone();
     while let Some((minute, mut map)) = states.pop_front() {
@@ -233,15 +193,6 @@ fn main() {
         }
         seen_states.insert(map.clone());
         if let Some(exp) = map.expedition {
-            if exp.x > max_x {
-                max_x = exp.x;
-                println!("max_x: {max_x}");
-            }
-            if exp.y > max_y {
-                max_y = exp.y;
-                println!("max_y: {max_y}");
-            }
-
             if exp == Coordinates::new(map.width - 1, map.height - 1) {
                 println!("FOUND! {minute}");
                 f = map;
@@ -253,7 +204,7 @@ fn main() {
         let positions = map.get_expedition_possible_positions();
         for pos in positions {
             let mut m = map.clone();
-            m.expedition = Some(pos);
+            m.expedition = pos;
 
             states.push_back((minute + 1, m));
         }
@@ -265,24 +216,16 @@ fn main() {
     f.move_blizzards();
     states.push_back((1, f));
 
+    let mut ff = map.clone();
     while let Some((minute, mut map)) = states.pop_front() {
         if let Some(ss) = seen_states.get(&map) {
             continue;
         }
         seen_states.insert(map.clone());
         if let Some(exp) = map.expedition {
-            // if exp.x > max_x {
-            //     max_x = exp.x;
-            //     println!("max_x: {max_x}");
-            // }
-            // if exp.y > max_y {
-            //     max_y = exp.y;
-            //     println!("max_y: {max_y}");
-            // }
-
-            if exp == Coordinates::new(1, 1) {
+            if exp == Coordinates::new(0, 0) {
                 println!("FOUND! {minute}");
-                // f = map;
+                ff = map;
                 break;
             }
         }
@@ -290,9 +233,35 @@ fn main() {
         map.move_blizzards();
         let positions = map.get_expedition_possible_positions2();
         for pos in positions {
-            println!("pos");
             let mut m = map.clone();
-            m.expedition = Some(pos);
+            m.expedition = pos;
+
+            states.push_back((minute + 1, m));
+        }
+    }
+
+    states.clear();
+    seen_states.clear();
+    ff.expedition = None;
+    ff.move_blizzards();
+    states.push_back((1, ff));
+    while let Some((minute, mut map)) = states.pop_front() {
+        if let Some(ss) = seen_states.get(&map) {
+            continue;
+        }
+        seen_states.insert(map.clone());
+        if let Some(exp) = map.expedition {
+            if exp == Coordinates::new(map.width - 1, map.height - 1) {
+                println!("FOUND! {minute}");
+                break;
+            }
+        }
+
+        map.move_blizzards();
+        let positions = map.get_expedition_possible_positions();
+        for pos in positions {
+            let mut m = map.clone();
+            m.expedition = pos;
 
             states.push_back((minute + 1, m));
         }
