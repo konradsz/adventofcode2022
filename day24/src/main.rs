@@ -37,35 +37,37 @@ impl Blizzard {
         }
     }
 
-    fn move_once(&mut self) {
+    fn move_once(&self) -> Self {
+        let mut next_blizzard = *self;
         match self.direction {
             Direction::Up => {
-                if let Some(y) = self.coordinates.y.checked_sub(1) {
-                    self.coordinates.y = y;
+                if let Some(y) = next_blizzard.coordinates.y.checked_sub(1) {
+                    next_blizzard.coordinates.y = y;
                 } else {
-                    self.coordinates.y = HEIGHT - 1;
+                    next_blizzard.coordinates.y = HEIGHT - 1;
                 }
             }
             Direction::Down => {
-                self.coordinates.y += 1;
-                if self.coordinates.y == HEIGHT {
-                    self.coordinates.y = 0;
+                next_blizzard.coordinates.y += 1;
+                if next_blizzard.coordinates.y == HEIGHT {
+                    next_blizzard.coordinates.y = 0;
                 }
             }
             Direction::Left => {
-                if let Some(x) = self.coordinates.x.checked_sub(1) {
-                    self.coordinates.x = x;
+                if let Some(x) = next_blizzard.coordinates.x.checked_sub(1) {
+                    next_blizzard.coordinates.x = x;
                 } else {
-                    self.coordinates.x = WIDTH - 1;
+                    next_blizzard.coordinates.x = WIDTH - 1;
                 }
             }
             Direction::Right => {
-                self.coordinates.x += 1;
-                if self.coordinates.x == WIDTH {
-                    self.coordinates.x = 0;
+                next_blizzard.coordinates.x += 1;
+                if next_blizzard.coordinates.x == WIDTH {
+                    next_blizzard.coordinates.x = 0;
                 }
             }
         }
+        next_blizzard
     }
 }
 
@@ -94,7 +96,7 @@ impl State {
     fn get_expedition_possible_positions(
         &self,
         valley_entrance: Coordinates,
-        blizzards: &Vec<Blizzard>,
+        blizzards: &HashSet<Blizzard>,
     ) -> Vec<Option<Coordinates>> {
         if let Some(exp) = self.expedition {
             let mut positions = vec![];
@@ -121,8 +123,19 @@ impl State {
         }
     }
 
-    fn can_move(&self, coordinates: Coordinates, blizzards: &Vec<Blizzard>) -> bool {
-        blizzards.iter().all(|b| b.coordinates != coordinates)
+    fn can_move(&self, coordinates: Coordinates, blizzards: &HashSet<Blizzard>) -> bool {
+        [
+            Direction::Up,
+            Direction::Down,
+            Direction::Left,
+            Direction::Right,
+        ]
+        .into_iter()
+        .all(|dir| {
+            blizzards
+                .get(&Blizzard::new(coordinates.x, coordinates.y, dir))
+                .is_none()
+        })
     }
 }
 
@@ -130,7 +143,7 @@ fn measure_quickest_path(
     mut initial_state: State,
     valley_entrance: Coordinates,
     valley_exit: Coordinates,
-    blizzard_history: &mut HashMap<usize, Vec<Blizzard>>,
+    blizzard_history: &mut HashMap<usize, HashSet<Blizzard>>,
 ) -> State {
     initial_state.minute += 1;
     let mut states = VecDeque::new();
@@ -151,8 +164,11 @@ fn measure_quickest_path(
         let blizzards = if let Some(blizzards) = blizzard_history.get(&state.minute) {
             blizzards
         } else {
-            let mut blizzard = blizzard_history.get(&(state.minute - 1)).unwrap().clone();
-            blizzard.iter_mut().for_each(|b| b.move_once());
+            let blizzard = blizzard_history.get(&(state.minute - 1)).unwrap().clone();
+            let blizzard = blizzard
+                .iter()
+                .map(|b| b.move_once())
+                .collect::<HashSet<_>>();
             blizzard_history.insert(state.minute, blizzard);
             blizzard_history.get(&state.minute).unwrap()
         };
@@ -172,21 +188,21 @@ fn main() {
     let input = std::fs::read_to_string("input").unwrap();
     let input = input.lines().collect::<Vec<_>>();
 
-    let mut blizzards = vec![];
+    let mut blizzards = HashSet::new();
     for (y, line) in input.iter().enumerate() {
         for (x, c) in line.chars().enumerate() {
             let (x, y) = (x - 1, y - 1);
             match c {
-                '^' => blizzards.push(Blizzard::new(x, y, Direction::Up)),
-                'v' => blizzards.push(Blizzard::new(x, y, Direction::Down)),
-                '<' => blizzards.push(Blizzard::new(x, y, Direction::Left)),
-                '>' => blizzards.push(Blizzard::new(x, y, Direction::Right)),
-                _ => (),
-            }
+                '^' => blizzards.insert(Blizzard::new(x, y, Direction::Up)),
+                'v' => blizzards.insert(Blizzard::new(x, y, Direction::Down)),
+                '<' => blizzards.insert(Blizzard::new(x, y, Direction::Left)),
+                '>' => blizzards.insert(Blizzard::new(x, y, Direction::Right)),
+                _ => false,
+            };
         }
     }
 
-    let mut blizzard_history: HashMap<usize, Vec<Blizzard>> = HashMap::new();
+    let mut blizzard_history = HashMap::new();
     blizzard_history.insert(0, blizzards);
     let state = measure_quickest_path(
         State::new(),
