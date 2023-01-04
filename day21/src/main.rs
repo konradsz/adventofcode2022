@@ -14,32 +14,30 @@ fn parse_line(line: &str) -> (String, Value) {
     let (name, value) = line.split_once(':').unwrap();
     if let Ok(n) = value.trim().parse::<u64>() {
         (name.into(), Value::Number(n))
+    } else if value.contains('+') {
+        let (lhs, rhs) = value.split_once('+').unwrap();
+        (
+            name.into(),
+            Value::Add(lhs.trim().into(), rhs.trim().into()),
+        )
+    } else if value.contains('-') {
+        let (lhs, rhs) = value.split_once('-').unwrap();
+        (
+            name.into(),
+            Value::Substract(lhs.trim().into(), rhs.trim().into()),
+        )
+    } else if value.contains('*') {
+        let (lhs, rhs) = value.split_once('*').unwrap();
+        (
+            name.into(),
+            Value::Multiply(lhs.trim().into(), rhs.trim().into()),
+        )
     } else {
-        if value.contains('+') {
-            let (lhs, rhs) = value.split_once('+').unwrap();
-            (
-                name.into(),
-                Value::Add(lhs.trim().into(), rhs.trim().into()),
-            )
-        } else if value.contains('-') {
-            let (lhs, rhs) = value.split_once('-').unwrap();
-            (
-                name.into(),
-                Value::Substract(lhs.trim().into(), rhs.trim().into()),
-            )
-        } else if value.contains('*') {
-            let (lhs, rhs) = value.split_once('*').unwrap();
-            (
-                name.into(),
-                Value::Multiply(lhs.trim().into(), rhs.trim().into()),
-            )
-        } else {
-            let (lhs, rhs) = value.split_once('/').unwrap();
-            (
-                name.into(),
-                Value::Divide(lhs.trim().into(), rhs.trim().into()),
-            )
-        }
+        let (lhs, rhs) = value.split_once('/').unwrap();
+        (
+            name.into(),
+            Value::Divide(lhs.trim().into(), rhs.trim().into()),
+        )
     }
 }
 
@@ -47,7 +45,7 @@ fn part_1(mut values: HashMap<String, Value>) -> u64 {
     evaluate(&mut values);
 
     if let Value::Number(n) = values.get("root").unwrap() {
-        return *n;
+        *n
     } else {
         panic!()
     }
