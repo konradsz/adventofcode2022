@@ -70,7 +70,7 @@ fn part_2(vulcano: &HashMap<String, Valve>) -> u32 {
             continue;
         }
 
-        let released_pressure = calculate_released_pressure(&state.opened_valves, &vulcano);
+        let released_pressure = calculate_released_pressure(&state.opened_valves, vulcano);
         let next_released = state.released_pressure + released_pressure;
 
         if beam.len() < BEAM_WIDTH {
@@ -80,7 +80,7 @@ fn part_2(vulcano: &HashMap<String, Valve>) -> u32 {
             if next_released > smallest {
                 beam.pop();
                 beam.push(Reverse(next_released));
-            } else if next_released < smallest {
+            } else {
                 continue;
             }
         }
